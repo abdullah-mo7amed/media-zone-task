@@ -1,103 +1,329 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence, useMotionValue, animate } from "framer-motion";
+import { TvOverlay } from "@/components/tv-overlay";
+import { SectionOne } from "@/components/sections/section-one";
+import { SectionTwo } from "@/components/sections/section-two";
+import { SectionThree } from "@/components/sections/section-three";
+import { SectionFour } from "@/components/sections/section-four";
+import { SectionFive } from "@/components/sections/section-five";
+
+interface SectionData {
+  id: string;
+  content: React.ReactNode;
+}
+
+export default function HomePage() {
+  const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [showTvOverlay, setShowTvOverlay] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [hasTvFadedOutOnce, setHasTvFadedOutOnce] = useState(false);
+  const isFirstMount = useRef(true);
+  const backgroundYMotionValue = useMotionValue(0);
+
+  const caseStudies = [
+    { src: "/slider-1.webp", alt: "Bondok", title: "Bondok" },
+    { src: "/slider-2.webp", alt: "The Peak", title: "The Peak" },
+    { src: "/slider-5.webp", alt: "Application", title: "ابليكيشن" },
+    {
+      src: "/slider-3.webp",
+      alt: "Elaf Developments",
+      title: "ELAF DEVELOPMENTS",
+    },
+    { src: "/slider-4.webp", alt: "Khoyout", title: "KHOYOUT" },
+    {
+      src: "/slider-1.webp",
+      alt: "Qubitarts",
+      title: "Qubitarts Creative Agency",
+    },
+    {
+      src: "/slider-2.webp",
+      alt: "Champion Academy",
+      title: "CHAMPION ACADEMY",
+    },
+    { src: "/slider-3.webp", alt: "Saeeda", title: "السعيدة" },
+    { src: "/slider-5.webp", alt: "Saeeda", title: "السعيدة" },
+    { src: "/slider-4.webp", alt: "Saeeda", title: "السعيدة" },
+  ];
+
+  const sections: SectionData[] = [
+    {
+      id: "section1",
+      content: <SectionOne scrollToNextSection={() => scrollToSection(currentSectionIndex + 1)} />,
+    },
+    {
+      id: "section2",
+      content: <SectionTwo currentSectionIndex={currentSectionIndex} />,
+    },
+    {
+      id: "section3",
+      content: <SectionThree currentSectionIndex={currentSectionIndex} />,
+    },
+    {
+      id: "section4",
+      content: <SectionFour currentSectionIndex={currentSectionIndex} />,
+    },
+    {
+      id: "section5",
+      content: <SectionFive caseStudies={caseStudies} />,
+    },
+  ];
+
+  useEffect(() => {
+    isFirstMount.current = false;
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const index = sectionRefs.current.indexOf(
+              entry.target as HTMLDivElement
+            );
+            if (index !== -1) setCurrentSectionIndex(index);
+          }
+        });
+      },
+      { root: scrollContainerRef.current, threshold: 0.7 }
+    );
+    sectionRefs.current.forEach(ref => ref && observer.observe(ref));
+    return () => {
+      sectionRefs.current.forEach(ref => ref && observer.unobserve(ref));
+    };
+  }, [sections.length]);
+
+  const scrollToSection = useCallback(
+    (index: number) => {
+      const scrollContainer = scrollContainerRef.current;
+      const targetSection = sectionRefs.current[index];
+      if (
+        isScrolling ||
+        isTransitioning ||
+        !scrollContainer ||
+        !targetSection
+      ) {
+        return;
+      }
+      setIsScrolling(true);
+      const targetScrollTop = targetSection.offsetTop;
+      animate(scrollContainer.scrollTop, targetScrollTop, {
+        duration: 1.5,
+        ease: "easeOut",
+        onUpdate: latest => {
+          scrollContainer.scrollTop = latest;
+        },
+        onComplete: () => {
+          setIsScrolling(false);
+        },
+      });
+    },
+    [isScrolling, isTransitioning, sections.length]
+  );
+
+  const handleTvOverlayTransition = useCallback(
+    (direction: "up" | "down") => {
+      if (isTransitioning || isScrolling) return;
+      setIsTransitioning(true);
+      if (direction === "down") {
+        setShowTvOverlay(false);
+        setHasTvFadedOutOnce(true);
+      } else {
+        setShowTvOverlay(true);
+      }
+    },
+    [isTransitioning, isScrolling]
+  );
+
+  useEffect(() => {
+    const touchStartY = { current: 0 };
+    const onWheel = (e: WheelEvent) => {
+      if (isScrolling || isTransitioning) {
+        e.preventDefault();
+        return;
+      }
+      if (showTvOverlay) {
+        if (e.deltaY > 0) {
+          e.preventDefault();
+          handleTvOverlayTransition("down");
+        }
+      } else {
+        const direction = e.deltaY > 0 ? "down" : "up";
+        let nextIndex = currentSectionIndex;
+        if (direction === "down" && currentSectionIndex < sections.length - 1) {
+          nextIndex = currentSectionIndex + 1;
+        } else if (direction === "up" && currentSectionIndex > 0) {
+          nextIndex = currentSectionIndex - 1;
+        } else if (
+          direction === "up" &&
+          currentSectionIndex === 0 &&
+          hasTvFadedOutOnce
+        ) {
+          e.preventDefault();
+          handleTvOverlayTransition("up");
+          return;
+        } else {
+          return;
+        }
+        e.preventDefault();
+        scrollToSection(nextIndex);
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isScrolling || isTransitioning) {
+        e.preventDefault();
+        return;
+      }
+      const isDownKey = ["ArrowDown", "PageDown"].includes(e.key);
+      const isUpKey = ["ArrowUp", "PageUp"].includes(e.key);
+      if (isDownKey && showTvOverlay) {
+        e.preventDefault();
+        handleTvOverlayTransition("down");
+      } else if (isUpKey && currentSectionIndex === 0 && hasTvFadedOutOnce) {
+        e.preventDefault();
+        handleTvOverlayTransition("up");
+      } else if (isDownKey || isUpKey) {
+        let nextIndex = currentSectionIndex;
+        if (isDownKey && currentSectionIndex < sections.length - 1) {
+          nextIndex = currentSectionIndex + 1;
+        } else if (isUpKey && currentSectionIndex > 0) {
+          nextIndex = currentSectionIndex - 1;
+        } else {
+          return;
+        }
+        e.preventDefault();
+        scrollToSection(nextIndex);
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (isScrolling || isTransitioning) return;
+      const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+      if (deltaY < -50 && showTvOverlay) {
+        handleTvOverlayTransition("down");
+      } else if (
+        deltaY > 50 &&
+        currentSectionIndex === 0 &&
+        hasTvFadedOutOnce
+      ) {
+        handleTvOverlayTransition("up");
+      } else if (!showTvOverlay) {
+        let nextIndex = currentSectionIndex;
+        if (deltaY < -50 && currentSectionIndex < sections.length - 1) {
+          nextIndex = currentSectionIndex + 1;
+        } else if (deltaY > 50 && currentSectionIndex > 0) {
+          nextIndex = currentSectionIndex - 1;
+        } else {
+          return;
+        }
+        scrollToSection(nextIndex);
+      }
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("touchstart", onTouchStart, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [
+    handleTvOverlayTransition,
+    scrollToSection,
+    showTvOverlay,
+    currentSectionIndex,
+    hasTvFadedOutOnce,
+    isScrolling,
+    isTransitioning,
+    sections.length,
+  ]);
+
+  const onTvAnimationComplete = useCallback(() => {
+    setIsTransitioning(false);
+    if (!showTvOverlay) {
+      if (currentSectionIndex === 0 && !isScrolling) {
+        scrollToSection(0);
+      }
+    }
+  }, [showTvOverlay, isScrolling, currentSectionIndex, scrollToSection]);
+
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const updateBackgroundPosition = () => {
+      const scrollTop = scrollContainer.scrollTop;
+      const viewportHeight = window.innerHeight;
+      let newBackgroundY = 0;
+
+      if (scrollTop < 4 * viewportHeight) {
+        newBackgroundY = -scrollTop;
+      } else {
+        newBackgroundY = -4 * viewportHeight;
+      }
+      backgroundYMotionValue.set(newBackgroundY);
+    };
+
+    scrollContainer.addEventListener("scroll", updateBackgroundPosition);
+    updateBackgroundPosition();
+    window.addEventListener("resize", updateBackgroundPosition);
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", updateBackgroundPosition);
+      window.removeEventListener("resize", updateBackgroundPosition);
+    };
+  }, [backgroundYMotionValue]);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="relative h-screen w-full overflow-hidden">
+      <div className="fixed inset-0 -z-20 bg-gradient-to-br from-purple-600 via-blue-600 to-teal-600" />
+      <motion.div
+        className="fixed inset-0 w-full bg-[url('/croped-screen.webp')] bg-no-repeat bg-cover bg-center -z-10"
+        style={{
+          y: backgroundYMotionValue,
+          height: "500vh",
+        }}
+      />
+      <div
+        ref={scrollContainerRef}
+        className="relative z-0 h-full w-full overflow-y-auto overflow-x-hidden"
+      >
+        {sections.map((section, i) => (
+          <div
+            key={section.id}
+            ref={el => {
+              sectionRefs.current[i] = el;
+            }}
+            id={section.id}
+            className={`w-full min-h-screen bg-transparent ${
+              section.id === "section5" ? "bg-[#429EAE]" : ""
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+            {section.content}
+          </div>
+        ))}
+      </div>
+      <AnimatePresence>
+        {showTvOverlay && (
+          <TvOverlay
+            onAnimationComplete={onTvAnimationComplete}
+            isInitialMount={isFirstMount.current}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

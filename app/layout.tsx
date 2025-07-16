@@ -1,15 +1,59 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Jersey_10,
+  Roboto,
+  Vina_Sans,
+  Space_Grotesk,
+  Inter,
+  Irish_Grover,
+  Jaro,
+  Vibur,
+} from "next/font/google";
 import "./globals.css";
+import Navbar from "./Navbar";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jersey = Jersey_10({
+  variable: "--font-jersey",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const vina = Vina_Sans({
+  variable: "--font-vina",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const roboto = Roboto({
+  variable: "--font-roboto",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const grotesk = Space_Grotesk({
+  variable: "--font-grotesk",
   subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const irish = Irish_Grover({
+  variable: "--font-irish",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const jaro = Jaro({
+  variable: "--font-jaro",
+  subsets: ["latin"],
+});
+
+const vibur = Vibur({
+  variable: "--font-vibur",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -24,9 +68,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link href="https://fonts.cdnfonts.com/css/impact" rel="stylesheet" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${jersey.variable} ${vina.variable} ${roboto.variable} ${vibur.variable} ${grotesk.variable} ${inter.variable} ${irish.variable} ${jaro.variable}`}
       >
+        <Navbar />
         {children}
       </body>
     </html>
