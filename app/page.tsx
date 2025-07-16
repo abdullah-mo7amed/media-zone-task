@@ -1,7 +1,11 @@
 "use client";
-
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence, useMotionValue, animate } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  animate,
+} from "framer-motion";
 import { TvOverlay } from "@/components/tv-overlay";
 import { SectionOne } from "@/components/sections/section-one";
 import { SectionTwo } from "@/components/sections/section-two";
@@ -53,7 +57,11 @@ export default function HomePage() {
   const sections: SectionData[] = [
     {
       id: "section1",
-      content: <SectionOne scrollToNextSection={() => scrollToSection(currentSectionIndex + 1)} />,
+      content: (
+        <SectionOne
+          scrollToNextSection={() => scrollToSection(currentSectionIndex + 1)}
+        />
+      ),
     },
     {
       id: "section2",
@@ -78,11 +86,14 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    // Capture the current value of sectionRefs.current for the cleanup function
+    const currentSectionRefs = sectionRefs.current;
+
     const observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            const index = sectionRefs.current.indexOf(
+            const index = currentSectionRefs.indexOf(
               entry.target as HTMLDivElement
             );
             if (index !== -1) setCurrentSectionIndex(index);
@@ -91,16 +102,19 @@ export default function HomePage() {
       },
       { root: scrollContainerRef.current, threshold: 0.7 }
     );
-    sectionRefs.current.forEach(ref => ref && observer.observe(ref));
+
+    currentSectionRefs.forEach(ref => ref && observer.observe(ref));
+
     return () => {
-      sectionRefs.current.forEach(ref => ref && observer.unobserve(ref));
+      currentSectionRefs.forEach(ref => ref && observer.unobserve(ref));
     };
-  }, [sections.length]);
+  }, [sections.length]); // sections.length is a stable value derived from 'sections'
 
   const scrollToSection = useCallback(
     (index: number) => {
       const scrollContainer = scrollContainerRef.current;
       const targetSection = sectionRefs.current[index];
+
       if (
         isScrolling ||
         isTransitioning ||
@@ -109,8 +123,10 @@ export default function HomePage() {
       ) {
         return;
       }
+
       setIsScrolling(true);
       const targetScrollTop = targetSection.offsetTop;
+
       animate(scrollContainer.scrollTop, targetScrollTop, {
         duration: 1.5,
         ease: "easeOut",
@@ -122,7 +138,7 @@ export default function HomePage() {
         },
       });
     },
-    [isScrolling, isTransitioning, sections.length]
+    [isScrolling, isTransitioning] // Removed sections.length as it's unnecessary
   );
 
   const handleTvOverlayTransition = useCallback(
@@ -141,11 +157,13 @@ export default function HomePage() {
 
   useEffect(() => {
     const touchStartY = { current: 0 };
+
     const onWheel = (e: WheelEvent) => {
       if (isScrolling || isTransitioning) {
         e.preventDefault();
         return;
       }
+
       if (showTvOverlay) {
         if (e.deltaY > 0) {
           e.preventDefault();
@@ -154,6 +172,7 @@ export default function HomePage() {
       } else {
         const direction = e.deltaY > 0 ? "down" : "up";
         let nextIndex = currentSectionIndex;
+
         if (direction === "down" && currentSectionIndex < sections.length - 1) {
           nextIndex = currentSectionIndex + 1;
         } else if (direction === "up" && currentSectionIndex > 0) {
@@ -179,8 +198,10 @@ export default function HomePage() {
         e.preventDefault();
         return;
       }
+
       const isDownKey = ["ArrowDown", "PageDown"].includes(e.key);
       const isUpKey = ["ArrowUp", "PageUp"].includes(e.key);
+
       if (isDownKey && showTvOverlay) {
         e.preventDefault();
         handleTvOverlayTransition("down");
@@ -207,7 +228,9 @@ export default function HomePage() {
 
     const onTouchEnd = (e: TouchEvent) => {
       if (isScrolling || isTransitioning) return;
+
       const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+
       if (deltaY < -50 && showTvOverlay) {
         handleTvOverlayTransition("down");
       } else if (
